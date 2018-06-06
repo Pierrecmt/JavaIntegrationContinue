@@ -1,0 +1,72 @@
+---
+- hosts: ci-server
+  roles:
+    - jenkins-server
+  tasks:
+    - name: "JDK8"
+      package: "name=openjdk-8-jdk-headless state=present"
+    - name: "compte wildlfy"
+      user:
+        home: /home/wildfly
+        name: wildfly
+        shell: /bin/bash
+        system: true
+    - name: "archive wildfly"
+      get_url:
+        url: "http://download.jboss.org/wildfly/11.0.0.Final/wildfly-11.0.0.Final.tar.gz"
+        dest: /home/wildfly
+    - name: "Dossier etc wildfly"
+      file:
+        path: /etc/wildfly
+        state: directory
+        mode: 0755
+    - name: "dézip archive"
+      unarchive:
+        dest: /opt/
+        src: /home/wildfly/wildfly-11.0.0.Final.tar.gz
+        remote_src: yes
+        copy: no
+    - name: "Rename Folder"
+      command: mv /opt/wildfly-11.0.0.Final/ /opt/wildfly
+      args:
+        chdir: /opt/
+        creates: /opt/wildfly/
+    - name: "move folder"
+      copy:
+        src: /opt/wildfly/docs/contrib/scripts/systemd/wildfly.conf
+        dest: /etc/wildfly/wildfly.conf
+        remote_src: yes
+    - name: "droits pour le wildfly.conf"
+      file:
+        path: /etc/wildfly/wildfly.conf
+        owner: wildfly
+        group: wildfly
+        mode: 0755
+    - name: "move file"
+      copy:
+        src: /opt/wildfly/docs/contrib/scripts/systemd/wildfly.service
+        dest: /etc/systemd/system/
+        remote_src: yes
+    - name: "wildfly Droit"
+      file:
+        path: /etc/systemd/system/wildfly.service
+        owner: wildfly
+        group: wildfly
+        mode: 0755
+    - name: "deplacer launch.sh"
+      copy:
+        src: /opt/wildfly/docs/contrib/scripts/systemd/launch.sh
+        dest: /opt/wildfly/bin/
+        remote_src: yes
+    - name: "donner les droits à launch.sh"
+      file:
+        path: /opt/wildfly/bin/launch.sh
+        owner: wildfly
+        group: wildfly
+        mode: 0755
+    - name: "Start service wildfly, if not running"
+      service:
+        name: wildfly
+        state: started
+    - name: "reload daemon"
+      command: systemctl daemon-reload
